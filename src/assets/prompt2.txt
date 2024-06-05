@@ -1,0 +1,77 @@
+In Solidity, smart contracts can be deleted from the blockchain by calling selfdestruct. However, the selfdestruct forcefully sends all remaining Ether stored in the contract to a designated address. It sends the Ethers even if the the contract at the designated address cannot handle the incoming Ether. That could mess up internal states of the designated contract, causing problems.
+ Comment
+
+For example, the following EtherGame contract allows every player to deposit 1 Ether. The 7th player will be the winner and can widthdraw 7 Ethers.
+
+contract EtherGame {
+    uint256 public targetAmount = 7 ether;
+    address public winner;
+
+    function deposit() public payable {
+        require(msg.value == 1 ether, "You can only send 1 Ether");
+
+        uint256 balance = address(this).balance;
+        require(balance <= targetAmount, "Game is over");
+
+        if (balance == targetAmount) {
+            winner = msg.sender;
+        }
+    }
+
+    function claimReward() public {
+        require(msg.sender == winner, "Not winner");
+
+        (bool sent,) = msg.sender.call{value: address(this).balance}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+The Attack contract selfdestruct and forcefully sends Ether to the EthereGame contract so that it can never meet the 7 Ether requirement to declare a winner.
+
+contract Attack {
+    EtherGame etherGame;
+
+    constructor(EtherGame _etherGame) {
+        etherGame = EtherGame(_etherGame);
+    }
+
+    function attack() public payable {
+        // You can simply break the game by sending ether so that
+        // the game balance >= 7 ether
+
+        // cast address to payable
+        address payable addr = payable(address(etherGame));
+        selfdestruct(addr);
+    }
+}
+The attack works like the following.
+
+Deploy EtherGame
+Players (say Alice and Bob) decides to play, deposits 1 Ether each.
+Deploy Attack with address of EtherGame
+Call Attack.attack to forcefully sending 5 ether. This will break the game. No one can become the winner.
+The solution is for EtherGame to NOT to rely on address(this).balance for its application logic as it can be forcefully changed by Attack. Here is a better version of EtherGame.
+
+contract EtherGame {
+    uint256 public targetAmount = 3 ether;
+    uint256 public balance;
+    address public winner;
+
+    function deposit() public payable {
+        require(msg.value == 1 ether, "You can only send 1 Ether");
+
+        balance += msg.value;
+        require(balance <= targetAmount, "Game is over");
+
+        if (balance == targetAmount) {
+            winner = msg.sender;
+        }
+    }
+
+    function claimReward() public {
+        require(msg.sender == winner, "Not winner");
+
+        (bool sent,) = msg.sender.call{value: balance}("");
+        require(sent, "Failed to send Ether");
+    }
+}
+Given the above context, please evaluate the Solidity code snippets and files from the user input to check for selfdestruct vulnerbilities. If you found a vulnerbility, please also suggest how to fix it by avoiding relying on address(this).balance as discussed above.

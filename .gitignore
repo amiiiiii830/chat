@@ -1,3 +1,6 @@
 routes/.env
 src/.env
 .DS_Store
+node_modules
+.svelte-kit
+package-lock.json

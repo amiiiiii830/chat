@@ -1,16 +1,15 @@
-<script>
+<script lang="js">
     import { onMount } from "svelte";
 
     let messages = [];
+    let prompt1 = "";
+    let prompt2 = "";
+    let prompt3 = "";
+    let prompt4 = "";
     function setTemplate(template) {
         document.getElementById("prompt").value = template;
     }
-    document
-        .getElementById("promptForm")
-        .addEventListener("submit", function (event) {
-            event.preventDefault();
-            // Handle form submission logic here
-        });
+
     async function sendPrompt(event) {
         event.preventDefault();
 
@@ -25,95 +24,93 @@
             messages: [{ role: "user", content: prompt }],
         };
 
-        try {
-            const response = await fetch(
-                "https://0x57fa64fb75d1b8c778063adcd81d99e525b6197d.gaianet.network/v1/chat/completions",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `fake_token`,
-                    },
-                    body: JSON.stringify(body),
+        const response = await fetch(
+            "https://0x57fa64fb75d1b8c778063adcd81d99e525b6197d.gaianet.network/v1/chat/completions",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `fake_token`,
                 },
-            );
+                body: JSON.stringify(body),
+            },
+        );
 
-            if (response.ok) {
-                const data = await response.json();
-                const messageContent = data.choices[0].message.content;
+        if (response.ok) {
+            const data = await response.json();
+            const messageContent = data.choices[0].message.content;
 
-                // Update messages array reactively
-                messages = [...messages, { prompt, response: messageContent }];
+            messages = [...messages, { prompt, response: messageContent }];
 
-                // Clear the input field
-                promptElement.value = "";
-            } else {
-                console.error("Failed to fetch data:", response.statusText);
-            }
-        } catch (error) {
-            console.error("Error:", error);
+            promptElement.value = "";
+        } else {
+            console.error("Failed to fetch data:", response.statusText);
         }
     }
 
     function saveMessages() {
         let textToSave = "";
-
         messages.forEach(({ prompt, response }) => {
             textToSave += `Prompt:\n${prompt}\n\nResponse:\n${response}\n\n---\n\n`;
         });
 
         const blob = new Blob([textToSave], { type: "text/plain" });
-
-        const linkElement = document.createElement("a");
-
-        linkElement.download = "prompts_and_responses.txt";
-
-        linkElement.href = window.URL.createObjectURL(blob);
-
-        document.body.appendChild(linkElement);
-
-        linkElement.click();
-
-        document.body.removeChild(linkElement);
+        const link = document.createElement("a");
+        link.download = "prompts_and_responses.txt";
+        link.href = window.URL.createObjectURL(blob);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
-    onMount(() => {
-        // Attach event listener to the form
+    onMount(async () => {
+        const [prompt1, prompt2, prompt3, prompt4] = await Promise.all([
+            fetch("/src/assets/prompt1.txt").then((res) =>
+                res.ok ? res.text() : Promise.reject("prompt1 not found"),
+            ),
+            fetch("/src/assets/prompt2.txt").then((res) =>
+                res.ok ? res.text() : Promise.reject("prompt2 not found"),
+            ),
+            fetch("/src/assets/prompt3.txt").then((res) =>
+                res.ok ? res.text() : Promise.reject("prompt3 not found"),
+            ),
+            fetch("/src/assets/prompt4.txt").then((res) =>
+                res.ok ? res.text() : Promise.reject("prompt4 not found"),
+            ),
+        ]);
         document
             .getElementById("promptForm")
             .addEventListener("submit", sendPrompt);
     });
 </script>
 
+<h3>Click to use any of the examples:</h3>
+
 <title>Chat Template</title>
 
 <div class="template-buttons">
-    <div
-        class="template-button"
-        onclick="setTemplate('Help me study\nvocabulary for an exam')"
-    >
-        Help me study<br /><small>vocabulary for an exam</small>
-    </div>
-    <div
-        class="template-button"
-        onclick="setTemplate('Write a thank-you note\nto my interviewer')"
-    >
-        Write a thank-you note<br /><small>to my interviewer</small>
-    </div>
-    <div
-        class="template-button"
-        onclick="setTemplate('Suggest fun activities\nto help me make friends in a new city')"
-    >
-        Suggest fun activities<br /><small
-            >to help me make friends in a new city</small
+    <div class="template-button" on:click={() => setTemplate(prompt1)}>
+        Re-Entrancy Attack Detection<br /><small
+            >Evaluate Solidity code for re-entrancy vulnerabilities and suggest
+            fixes using function modifiers</small
         >
     </div>
-    <div
-        class="template-button"
-        onclick="setTemplate('Write a Python script\nto automate sending daily email reports')"
-    >
-        Write a Python script<br /><small
-            >to automate sending daily email reports</small
+    <div class="template-button" on:click={() => setTemplate(prompt2)}>
+        Selfdestruct Vulnerability Check<br /><small
+            >Identify selfdestruct vulnerabilities in Solidity contracts and
+            recommend avoiding reliance on balance</small
+        >
+    </div>
+    <div class="template-button" on:click={() => setTemplate(prompt3)}>
+        Private Field Sensitivity Audit<br /><small
+            >Review Solidity contracts for private fields to ensure no sensitive
+            information is stored</small
+        >
+    </div>
+    <div class="template-button" on:click={() => setTemplate(prompt4)}>
+        Delegatecall Security Analysis<br /><small
+            >Assess delegatecall usage in Solidity contracts to prevent stateful
+            library exploitation by refactoring to stateless libraries</small
         >
     </div>
 </div>
@@ -132,8 +129,7 @@
         <pre><strong>Response:</strong> {response}</pre>
     </div>
 {/each}
-
-<button on:click={saveMessages}>Save Prompts</button>
+<button on:click={saveMessages}> Save Prompts </button>
 
 <style>
     textarea {
@@ -144,23 +140,16 @@
         margin-top: 20px;
     }
     .template-buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr); /* Two columns */
+        gap: 20px; /* Gap between buttons */
         margin-bottom: 20px;
     }
+
     .template-button {
         background-color: #f5d7b4; /* Adjust color as needed */
-        border-radius: 8px;
-        padding: 10px;
+        border-radius: 0.25rem;
+        padding: 0.5rem;
         cursor: pointer;
-        flex-basis: calc(50% - 10px);
-    }
-    textarea {
-        width: 60%;
-    }
-    .message {
-        width: 60%;
-        margin-top: 20px;
     }
 </style>
