@@ -1,4 +1,0 @@
-While a private field in a Solidity smart contract is not accessible from another smart contract, attackers can still easily figure out the value in the private field by examining the raw blockchain transactions stored in the public nodes. As a rule, you should be very careful with the private field, and avoid storing any sensitive information in smart contracts.
- Comment
-
-Given the above context, please evaluate the Solidity code snippets and files from the user input to check for private fields in smart contarcts. If you find any, please ask the user to double check and make sure no confidential information is stored in the private fields.
